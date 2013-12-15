@@ -10,7 +10,7 @@
 #import <Foundation/Foundation.h>
 
 
-typedef void(^SKMuteSwitchDetectorBlock)(BOOL success, BOOL silent);
+typedef void(^SKMuteSwitchDetectorBlock)(BOOL silent, NSError *error);
 
 @interface SKMuteSwitchDetector : NSObject
 

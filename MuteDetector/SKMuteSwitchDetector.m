@@ -17,20 +17,20 @@ void MuteSoundPlaybackComplete(SystemSoundID  ssID,void* clientData){
 
     NSDictionary *soundData = CFBridgingRelease(clientData);
     SKMuteSwitchDetectorBlock andPerform = soundData[@"andPerform"];
-    SystemSoundID soundId = [soundData[@"soundId"] integerValue];
+    SystemSoundID soundId = (SystemSoundID)[soundData[@"soundId"] integerValue];
 
     NSTimeInterval elapsed = [NSDate timeIntervalSinceReferenceDate] - [soundData[@"start"] doubleValue];
-    andPerform(YES, elapsed < 0.2);
+    andPerform(elapsed < 0.2, nil);
     
     AudioServicesRemoveSystemSoundCompletion(soundId);
     AudioServicesDisposeSystemSoundID(soundId);
 }
 
-BOOL createSoundFileIfRequired(NSString* soundFile) {
+BOOL createSoundFileIfRequired(NSString *soundFile, NSError **error) {
     if ([[NSFileManager defaultManager] fileExistsAtPath:soundFile isDirectory:NO])
         return YES;
     
-    NSUInteger length = SAMPLE_RATE * SAMPLES * 2; // 2 bytes per sample
+    NSUInteger length = (NSUInteger)(SAMPLE_RATE * SAMPLES * 2); // 2 bytes per sample
     NSUInteger temp;
     // initialize with room for RIFF chunk (36) + "data" header from data chunk + actual sound data
     NSMutableData *data = [NSMutableData dataWithCapacity:(length + 36 + 4)];
@@ -62,7 +62,7 @@ BOOL createSoundFileIfRequired(NSString* soundFile) {
     for (NSUInteger i = 0; i < length; i++)
         [data appendData:nullByte];
     
-    return [data writeToFile:soundFile atomically:YES];
+    return [data writeToFile:soundFile options:NSDataWritingAtomic error:error];
 }
 
 @implementation SKMuteSwitchDetector
@@ -72,14 +72,16 @@ BOOL createSoundFileIfRequired(NSString* soundFile) {
 
     NSString *soundFile = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/silence.wav"];
     
-    if (!createSoundFileIfRequired(soundFile)) {
-        andPerform(NO, NO);
+    NSError *createSoundFileError;
+    if (!createSoundFileIfRequired(soundFile, &createSoundFileError)) {
+        andPerform(NO, createSoundFileError);
         return;
     }
     
     SystemSoundID soundId;
 
-    if (AudioServicesCreateSystemSoundID((__bridge CFURLRef)[NSURL fileURLWithPath:soundFile], &soundId) == kAudioServicesNoError){
+    OSStatus osStatus = AudioServicesCreateSystemSoundID((__bridge CFURLRef)[NSURL fileURLWithPath:soundFile], &soundId);
+    if (osStatus == kAudioServicesNoError){
         UInt32 yes = 1;
         AudioServicesSetProperty(kAudioServicesPropertyIsUISound, sizeof(soundId),&soundId,sizeof(yes), &yes);
         
@@ -88,7 +90,7 @@ BOOL createSoundFileIfRequired(NSString* soundFile) {
 
         AudioServicesPlaySystemSound(soundId);
     } else {
-        andPerform(NO, NO);
+        andPerform(NO, [NSError errorWithDomain:NSOSStatusErrorDomain code:osStatus userInfo:nil]);
     }
 }
 
