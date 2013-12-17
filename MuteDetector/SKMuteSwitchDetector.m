@@ -12,6 +12,7 @@
 
 #define SAMPLE_RATE 44000
 #define SAMPLES 0.2
+#define WAIT_THRESHOLD 0.2
 
 void MuteSoundPlaybackComplete(SystemSoundID  ssID,void* clientData){
 
@@ -20,7 +21,7 @@ void MuteSoundPlaybackComplete(SystemSoundID  ssID,void* clientData){
     SystemSoundID soundId = (SystemSoundID)[soundData[@"soundId"] integerValue];
 
     NSTimeInterval elapsed = [NSDate timeIntervalSinceReferenceDate] - [soundData[@"start"] doubleValue];
-    andPerform(elapsed < 0.2, nil);
+    andPerform(elapsed < WAIT_THRESHOLD, nil);
     
     AudioServicesRemoveSystemSoundCompletion(soundId);
     AudioServicesDisposeSystemSoundID(soundId);
@@ -70,7 +71,7 @@ BOOL createSoundFileIfRequired(NSString *soundFile, NSError **error) {
 + (void)checkSwitch:(SKMuteSwitchDetectorBlock)andPerform {
     if (!andPerform) return;
 
-    NSString *soundFile = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/silence.wav"];
+    NSString *soundFile = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/SKMuteSwitchDetector_Silence.wav"];
     
     NSError *createSoundFileError;
     if (!createSoundFileIfRequired(soundFile, &createSoundFileError)) {
